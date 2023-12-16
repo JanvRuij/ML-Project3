@@ -44,5 +44,5 @@ class QuadraticKnapSack:
         model.optimize()
 
 
-x = QuadraticKnapSack(60, 10)
+x = QuadraticKnapSack(56, 10)
 x.ILP_Solver()
