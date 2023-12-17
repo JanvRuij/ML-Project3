@@ -1,4 +1,4 @@
-# Create the knapsack environment
+# Create the knapsack enviroment
 import random
 import gym
 from gym import spaces
@@ -6,8 +6,14 @@ from gym.utils import seeding
 import numpy as np
 
 # Parameters
-N = 50
-R = 100
+# capacity of the bins
+C = 200
+# number of items until we see new items
+M = 10
+# number of items in total
+N = 200
+# max size of each item
+S = 100
 
 
 class BalanceEnv(gym.Env):
@@ -20,50 +26,51 @@ class BalanceEnv(gym.Env):
     def __init__(self):
         self.seed()
         self.state = self.reset()
-        self.action_space = spaces.Discrete(N)
+        # place item (1 to M) into a bin (1 to N)
+        self.action_space = spaces.Discrete(M, N)
         self.observation_space = spaces.Box(
-            low=np.array([0.0] * (4 + 2*N)),
-            high=np.array([N, N*R, N*R, N*(R+10)] + [R, R+10] * N),
+            low=np.array([0.0] * (4 + M + N)),
+            high=np.array([N] + [M] + [C] + [M] + [S]*M + [S]*N),
             dtype=np.uint32)
 
     def reset(self):
-        self.items = []
-        self.C = 0
-        self.nbItems = int(random.randint(25, 50))
-        for i in range(self.nbItems):
-            self.items.append(random.randint(1, R))
-            self.C += self.items[-1]
-            self.items.append(self.items[-1] + 10)
-        self.C = int(self.C * (0.1 + random.random() * 0.8))
-        for i in range(self.nbItems, N):
-            self.items.append(0)
-            self.items.append(0)
-
+        self.C = C
+        self.m = M
+        self.generated = 0
+        # create random instance from 150 to 200 items
+        self.nbItems = random.randint(150, 200)
+        self.x = np.zeros((self.nbItems, self.nbItems))
+        # create random items
+        self.items = np.random.randint(1, S, self.nbItems)
+        desired_shape = (1, N)
+        padding = desired_shape[1] - self.items.shape[0]
+        self.items = np.pad(self.items, (0, padding), "constant", constant_values=0)
+        self.visible_items = self.items[:self.m]
+        self.greedy_value = self._greedy()
         self.total_reward = 0
         self.total_weight = 0
         self.state = self._update_state()
-        self.greedy = greedy(self.items, self.C)
         return self.state
 
-    def step(self, action):
+    def step(self, action_item, action_bin):
         reward = 0
         done = False
-        self.total_weight += self.items[2*action]
-        if self.items[2*action] == 0:
+        self.total_weight += np.sum(self.x, axis=1)
+        if self.visible_items[action_item] == 0:
             reward = 0
             done = True
-        elif self.total_weight > self.C:
+        elif np.sum(self.x[action_bin], axis=1) + self.visible_items[action_item] > self.C:
             reward = 0
             done = True
         else:
-            reward = self.items[2*action + 1]
-            self.nbItems -= 1
-            self.items[2*action] = 0
-            self.items[2*action + 1] = 0
-            self.items[2*action] = self.items[2*self.nbItems],
-            self.items[2*self.nbItems] = self.items[2*action]
-            self.items[2*action + 1] = self.items[2*self.nbItems + 1]
-            self.items[2*self.nbItems + 1] = self.items[2*action + 1]
+            rowsum = np.sum(self.x, axis=1)
+            self.x = np.zeros((self.nbItems, self.nbItems))
+            nr_bins = np.count_nonzero(rowsum, axis=0)
+            # the less bins the higher the reward
+            reward = N - nr_bins
+            self.visible_items[action_item] = 0
+            if np.sum(self.visible_items) == 0 and self.generated < self.nbItems:
+                self.generate_new_items()
 
         self.total_reward += reward
         self.state = self._update_state()
@@ -71,14 +78,10 @@ class BalanceEnv(gym.Env):
         return self.state, reward, done, {}
 
     def _update_state(self):
-        tempS = []
-        tempS.append(self.nbItems)
-        sumW = sum(self.items[2*i] for i in range(N))
-        sumP = sum(self.items[2*i+1] for i in range(N))
-        tempS.append(self.C - self.total_weight)
-        tempS.append(sumW)
-        tempS.append(sumP)
-        state = np.array(tempS + self.items)
+        total_weights = np.sum(self.x, axis=0)
+        tempS = np.array([self.nbItems, M, C, self.generated, S])
+
+        state = np.concatenate((tempS, self.visible_items, total_weights))
         return state
 
     def render(self, mode='human', close=False):
@@ -88,7 +91,38 @@ class BalanceEnv(gym.Env):
                 round(self.total_reward - self.greedy, 3), ")",
                 round(self.total_weight/self.C, 3)
             )
-        """if self.total_reward - self.greedy > 0:
-            print(self.initialItem)
-            print(self.solution)
-            print(self.greedySol)"""
+
+    def generate_new_items(self):
+        self.visible_items = self.items[self.generated:self.generated + self.m]
+        self.generated += self.m
+
+    def _greedy(self):
+        self.visible_items.sort()
+        for item in self.visible_items:
+            # sort the indexes from high row sum to low
+            sorted_indices = np.flip(np.argsort(self.x.sum(axis=1), axis=0))
+            # we want to append the item to the bin with the most items
+            for idx in sorted_indices:
+                # check if the item fits
+                if np.sum(self.x[idx]) + item <= self.C:
+                    # if it fits we append it to the first open position
+                    zero_index = np.argwhere(self.x[idx] == 0)[0]
+                    self.x[idx][zero_index] = item
+                    break
+
+        # if we havent generated n items we continue the process
+        if self.generated < self.nbItems:
+            self.generate_new_items()
+            return self._greedy()
+
+        # otherwise we delete all empty bins and return (for readibility)
+        else:
+            rowsum = np.sum(self.x, axis=1)
+            # reset everything for the neural network to use
+            self.x = np.zeros((self.nbItems, self.nbItems))
+            self.visible_items = self.items[:self.m]
+            nr_bins = np.count_nonzero(rowsum, axis=0)
+            return nr_bins
+
+
+x = BalanceEnv()

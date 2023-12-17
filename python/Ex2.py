@@ -1,13 +1,14 @@
 import numpy as np
 
+
 class OnlineBPP:
     def __init__(self, n, m) -> None:
         # number of items
         self.n = n
         # number of items after which the new items are generated
         self.m = m
-        # generate m random items
-        self.items = np.round(np.random.rand(m) * 100, 0)
+        # generate m random items of maximum size 100
+        self.items = np.random.randint(1, 100, (m, 1))
         # capacity of the bins
         self.c = 200
         # solution vector
@@ -47,23 +48,24 @@ class OnlineBPP:
 
     # divide items evenly over two bins (also sorted)
     def greedy2(self):
-
         # index 0 means we are dividing items over the first two bins
         index = 0
         self.items.sort()
-
-        for item_i in range(len(self.items)):
+        # we try to fit item 0 first
+        item_i = 0
+        while item_i < len(self.items):
             # for uneven we add to the first bin, otherwise the second bin
             f_or_s = item_i % 2
             zero_index = np.argmin(self.x[index] != 0)
             if np.sum(self.x[index + f_or_s]) + self.items[item_i] <= self.c:
                 # if it fits we add the item to the bin
                 self.x[index][zero_index + f_or_s] = self.items[item_i]
+                # go to next item
+                item_i += 1
 
             # if it doesnt fit in both we update the index
             else:
                 index += 1
-
         # if we havent generated n items we continue the process
         if self.generated < self.n:
             self.generate_new_items()
@@ -71,9 +73,17 @@ class OnlineBPP:
 
         # otherwise we delete all empty bins and return (for readibility)
         else:
+            self.x = self.x[:, np.sum(self.x, axis=0) != 0]
+            self.x = self.x[np.sum(self.x, axis=1) != 0]
             return
 
 
 x = OnlineBPP(200, 10)
 x.greedy1()
 print(x.x)
+N = 200
+M = 10
+C = 200
+S = 100
+y = np.array([[N] + [M] + [C] + [M] + [S]*M + [1]*N])
+print(y)
