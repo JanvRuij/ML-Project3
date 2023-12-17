@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class OnlineBPP:
     def __init__(self, n, m) -> None:
         # number of items
@@ -8,16 +7,16 @@ class OnlineBPP:
         # number of items after which the new items are generated
         self.m = m
         # generate m random items
-        self.items = np.random.rand(m)
+        self.items = np.round(np.random.rand(m) * 100, 0)
         # capacity of the bins
-        self.c = 20
+        self.c = 200
         # solution vector
         self.x = np.zeros((n, n))
         # to keep track of items generated
         self.generated = m
 
     def generate_new_items(self):
-        self.items = np.random.rand(self.m)
+        self.items = np.round(np.random.rand(self.m)*100, 0)
         self.generated += self.m
 
     # keep adding until it doesnt fit anymore (sorted first)
@@ -40,9 +39,10 @@ class OnlineBPP:
             self.generate_new_items()
             self.greedy1()
 
-        # otherwise we delete all empty bins and return
+        # otherwise we delete all empty bins and return (for readibility)
         else:
-            self.x = self.x[~np.all(self.x == 0, axis=1)]
+            self.x = self.x[:, np.sum(self.x, axis=0) != 0]
+            self.x = self.x[np.sum(self.x, axis=1) != 0]
             return
 
     # divide items evenly over two bins (also sorted)
@@ -69,9 +69,8 @@ class OnlineBPP:
             self.generate_new_items()
             self.greedy2()
 
-        # otherwise we delete all empty bins and return
+        # otherwise we delete all empty bins and return (for readibility)
         else:
-            self.x = self.x[~np.all(self.x == 0, axis=1)]
             return
 
 
