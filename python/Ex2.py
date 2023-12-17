@@ -25,13 +25,13 @@ class OnlineBPP:
         self.items.sort()
         for item in self.items:
             # sort the indexes from high row sum to low
-            sorted_indices = np.argsort(self.x.sum(axis=1))[::-1]
+            sorted_indices = np.flip(np.argsort(self.x.sum(axis=1), axis=0))
             # we want to append the item to the bin with the most items
             for idx in sorted_indices:
                 # check if the item fits
                 if np.sum(self.x[idx]) + item <= self.c:
-                    # if it fits we append it
-                    zero_index = np.argmin(self.x[idx] == 0)
+                    # if it fits we append it to the first open position
+                    zero_index = np.argwhere(self.x[idx] == 0)[0]
                     self.x[idx][zero_index] = item
                     break
 
@@ -75,6 +75,6 @@ class OnlineBPP:
             return
 
 
-x = OnlineBPP(100, 10)
-x.greedy2()
+x = OnlineBPP(200, 10)
+x.greedy1()
 print(x.x)
