@@ -64,13 +64,18 @@ class BalanceEnv(gym.Env):
             reward = 0
             done = True
         else:
+            self.x[action_bin][action_item] = self.visible_items[action_item]
             rowsum = np.sum(self.x, axis=1)
             nr_bins = np.count_nonzero(rowsum, axis=0)
             # the less bins the higher the reward
-            reward = N - nr_bins
+            reward = self.n - nr_bins
             self.visible_items[action_item] = 0
             if np.sum(self.visible_items) == 0 and self.generated < self.nbItems:
                 self.generate_new_items()
+            elif self.generated > self.nbItems:
+                # the less bins the higher the reward
+                done = True
+
 
         self.total_reward += reward
         self.state = self._update_state()
@@ -121,8 +126,9 @@ class BalanceEnv(gym.Env):
             # reset everything for the neural network to use
             self.x = np.zeros((self.n, self.n))
             self.visible_items = self.items[:self.m]
+            self.generated = 0
             nr_bins = np.count_nonzero(rowsum, axis=0)
-            return nr_bins
+            return self.n - nr_bins
 
 
 x = BalanceEnv()

@@ -158,11 +158,6 @@ for n in range(n_episodes):
         # Choose action to be epsilon-greedy
         if np.random.random() < epsilon:
             a = env.action_space.sample()
-            # turn 1 dimensional actions space into two dimension
-            # item a1
-            a1 = a % env.m
-            # goes into bin a2
-            a2 = a // env.m
         else:
             a = np.argmax(qvals_s)
         # Take step, store results
@@ -196,13 +191,15 @@ for n in range(n_episodes):
             avgloss = []
     # env.render()
     r_sums[-1] += r_sum
+    print(env.greedy)
+    print(r_sum)
     g_sums[-1] += env.greedy
     if r_sum > env.greedy:
         r_betters[-1] += 1
     elif r_sum < env.greedy:
         r_betters[-1] -= 1
 
-model.save("model_KP")
+model.save("model_OBPP")
 d_sums = [g_sums[i] - r_sums[i] for i in range(len(g_sums))]
 plt.plot(d_sums,'ro',markersize=1)
 plt.show()
