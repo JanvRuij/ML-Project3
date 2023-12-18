@@ -91,18 +91,19 @@ x.greedy1()
 env = BalanceEnv()
 
 # Building the nnet that approximates q
-n_actions = env.m * env.n
+# ten items to look at so ten actions
+n_actions = env.m
 input_dim = env.observation_space.shape[0]
 model = Sequential()
-model.add(Dense(32, input_dim=input_dim, activation='relu'))
-model.add(Dense(16, activation='relu'))
+model.add(Dense(50, input_dim=input_dim, activation='relu'))
+model.add(Dense(25, activation='relu'))
 model.add(Dense(8, activation='relu'))
 model.add(Dense(n_actions, activation='linear'))
 model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
 modelT = Sequential()
-modelT.add(Dense(32, input_dim=input_dim, activation='relu'))
-modelT.add(Dense(16, activation='relu'))
+modelT.add(Dense(50, input_dim=input_dim, activation='relu'))
+modelT.add(Dense(25, activation='relu'))
 modelT.add(Dense(8, activation='relu'))
 modelT.add(Dense(n_actions, activation='linear'))
 modelT.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
@@ -116,8 +117,8 @@ def replay(replay_memory, minibatch_size):
     r_l = np.array(list(map(lambda x: x['r'], minibatch)))
     sprime_l = np.array(list(map(lambda x: x['sprime'], minibatch)))
     done_l = np.array(list(map(lambda x: x['done'], minibatch)))
-    qvals_sprime_l = modelT.predict(sprime_l, verbose=0) # Predict q-values for all actions in s' with target nn
-    target_f = model.predict(s_l, verbose=0) # Predict q-values for all actions in s with nn
+    qvals_sprime_l = modelT.predict(sprime_l, verbose="0")  # Predict q-values for all actions in s' with target nn
+    target_f = model.predict(s_l, verbose="0") # Predict q-values for all actions in s with nn
     # q-values update
     for i, (s, a, r, qvals_sprime, done) in enumerate(zip(s_l, a_l, r_l, qvals_sprime_l, done_l)):
         if not done:
@@ -125,7 +126,7 @@ def replay(replay_memory, minibatch_size):
         else:
             target = r
         target_f[i][a] = target  # Update q-value of action a in state s by replacing the prediction with the observed q-value 
-    history = model.fit(s_l,target_f, epochs=1, verbose=0, batch_size=minibatch_size) # Train the nn
+    history = model.fit(s_l,target_f, epochs=2, verbose=0, batch_size=minibatch_size) # Train the nn
     avgloss.append(history.history["loss"][0])
     return model
 
@@ -134,9 +135,9 @@ n_episodes = 2000
 it = 0
 gamma = 0.999
 epsilon = 1.0
-epsilon_multiplier = 0.993
-epsilon_min = 0.001
-minibatch_size = 64
+epsilon_multiplier = 0.933
+epsilon_min = 0.00001
+minibatch_size = 12
 memory_minsize = 512
 n_update = 8
 r_sums = [0]
@@ -154,19 +155,17 @@ for n in range(n_episodes):
     while not done:
         it += 1
         # Predict q-values for all actions
-        qvals_s = model.predict(s.reshape(1, input_dim), verbose=0)
+        qvals_s = model.predict(s.reshape(1, input_dim), verbose="0")
+        a = 0
         # Choose action to be epsilon-greedy
         if np.random.random() < epsilon:
-            a = env.action_space.sample()
+            if epsilon > epsilon_min:
+                epsilon *= epsilon_multiplier
+                a = env.action_space.sample()
         else:
             a = np.argmax(qvals_s)
-        # Take step, store results
-        # turn 1 dimensional actions space into two dimension
-        # item a1
-        a1 = a % env.m
-        # goes into bin a2
-        a2 = a // env.m
-        sprime, r, done, info = env.step(a1, a2)
+
+        sprime, r, done, info = env.step(a)
         r_sum += r
         # add to memory, respecting memory buffer limit
         if len(replay_memory) > mem_max_size:
@@ -177,10 +176,9 @@ for n in range(n_episodes):
         # Train the nnet that approximates q(s,a), using the replay memory
         if len(replay_memory) > memory_minsize:
             model = replay(replay_memory, minibatch_size)
-            if epsilon > epsilon_min:
-                epsilon *= epsilon_multiplier
             if it % n_update == 0:
                 modelT.set_weights(model.get_weights())
+
     if n % 10 == 0 and n > 0:
         print("######", n, r_sums[-1], g_sums[-1], r_sums[-1] - g_sums[-1], r_betters[-1], "######")
         r_sums.append(0)
@@ -191,8 +189,6 @@ for n in range(n_episodes):
             avgloss = []
     # env.render()
     r_sums[-1] += r_sum
-    print(env.greedy)
-    print(r_sum)
     g_sums[-1] += env.greedy
     if r_sum > env.greedy:
         r_betters[-1] += 1
@@ -201,12 +197,12 @@ for n in range(n_episodes):
 
 model.save("model_OBPP")
 d_sums = [g_sums[i] - r_sums[i] for i in range(len(g_sums))]
-plt.plot(d_sums,'ro',markersize=1)
+plt.plot(d_sums, 'ro', markersize=1)
 plt.show()
 plt.clf
-plt.plot(r_betters,'ro',markersize=1)
+plt.plot(r_betters, 'ro', markersize=1)
 plt.show()
 plt.clf
-plt.plot(loss,'ro',markersize=1)
+plt.plot(loss, 'ro', markersize=1)
 plt.show()
 print(r_betters)
