@@ -83,30 +83,25 @@ class OnlineBPP:
             return
 
 
-x = OnlineBPP(200, 10)
-x.greedy1()
-
-
 # Setting up the environment
 env = BalanceEnv()
 
 # Building the nnet that approximates q
-# ten items to look at so ten actions
+# number of items visible = number of actions
 n_actions = env.m
+print(n_actions)
 input_dim = env.observation_space.shape[0]
 model = Sequential()
-model.add(Dense(50, input_dim=input_dim, activation='relu'))
-model.add(Dense(25, activation='relu'))
-model.add(Dense(8, activation='relu'))
-model.add(Dense(n_actions, activation='linear'))
-model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+model.add(Dense(20, activation='relu'))
+model.add(Dense(10, activation='relu'))
+model.add(Dense(n_actions, activation='softmax'))
+model.compile(optimizer=Adam(learning_rate=0.0003), loss='mse')
 
 modelT = Sequential()
-modelT.add(Dense(50, input_dim=input_dim, activation='relu'))
-modelT.add(Dense(25, activation='relu'))
-modelT.add(Dense(8, activation='relu'))
-modelT.add(Dense(n_actions, activation='linear'))
-modelT.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+modelT.add(Dense(20, activation='relu'))
+modelT.add(Dense(10, activation='relu'))
+modelT.add(Dense(n_actions, activation='softmax'))
+modelT.compile(optimizer=Adam(learning_rate=0.0003), loss='mse')
 
 
 # Experience replay
@@ -121,24 +116,23 @@ def replay(replay_memory, minibatch_size):
     target_f = model.predict(s_l, verbose="0") # Predict q-values for all actions in s with nn
     # q-values update
     for i, (s, a, r, qvals_sprime, done) in enumerate(zip(s_l, a_l, r_l, qvals_sprime_l, done_l)):
-        if not done:
-            target = r + gamma * np.max(qvals_sprime)
-        else:
-            target = r
-        target_f[i][a] = target  # Update q-value of action a in state s by replacing the prediction with the observed q-value 
-    history = model.fit(s_l,target_f, epochs=2, verbose=0, batch_size=minibatch_size) # Train the nn
+        if done:
+            target_f[i][a] = 0
+        else:    
+            target_f[i][a] = r  # Update q-value of action a in state s by replacing the prediction with the observed q-value 
+    history = model.fit(s_l,target_f, epochs=1, verbose=0, batch_size=32) # Train the nn
     avgloss.append(history.history["loss"][0])
     return model
 
 
 n_episodes = 2000
 it = 0
-gamma = 0.999
+gamma = 0.993
 epsilon = 1.0
-epsilon_multiplier = 0.933
-epsilon_min = 0.00001
-minibatch_size = 12
-memory_minsize = 512
+epsilon_multiplier = 0.993
+epsilon_min = 0.001
+minibatch_size = 1000
+memory_minsize = 1000
 n_update = 8
 r_sums = [0]
 g_sums = [0]
@@ -146,7 +140,7 @@ r_betters = [0]
 loss = []
 avgloss = []
 replay_memory = []  # replay memory holds s, a, r, s'
-mem_max_size = 100000
+mem_max_size = 10000
 
 for n in range(n_episodes):
     s = env.reset()
@@ -159,11 +153,10 @@ for n in range(n_episodes):
         a = 0
         # Choose action to be epsilon-greedy
         if np.random.random() < epsilon:
-            if epsilon > epsilon_min:
-                epsilon *= epsilon_multiplier
                 a = env.action_space.sample()
         else:
             a = np.argmax(qvals_s)
+            print(a)
 
         sprime, r, done, info = env.step(a)
         r_sum += r
@@ -175,11 +168,14 @@ for n in range(n_episodes):
         s = sprime
         # Train the nnet that approximates q(s,a), using the replay memory
         if len(replay_memory) > memory_minsize:
+            
+            epsilon *= epsilon_multiplier
             model = replay(replay_memory, minibatch_size)
             if it % n_update == 0:
                 modelT.set_weights(model.get_weights())
 
-    if n % 10 == 0 and n > 0:
+    if n % 10 == 0:
+        print(f"Epsilon: {epsilon}")
         print("######", n, r_sums[-1], g_sums[-1], r_sums[-1] - g_sums[-1], r_betters[-1], "######")
         r_sums.append(0)
         g_sums.append(0)

@@ -7,13 +7,13 @@ import numpy as np
 
 # Parameters
 # capacity of the bins
-C = 200
+C = 50
 # number of items until we see new items
-M = 10
+M = 5
 # number of items in total
-N = 200
+N = 100
 # max size of each item
-S = 100
+S = 40
 
 
 class BalanceEnv(gym.Env):
@@ -29,8 +29,8 @@ class BalanceEnv(gym.Env):
         # place item (1 to M) into a bin (1 to N)
         self.action_space = spaces.Discrete(M)
         self.observation_space = spaces.Box(
-            low=np.array([0.0] * (2 + M + N)),
-            high=np.array([N] + [N] + [S]*M + [S]*N),
+            low=np.array([0.0] * (3 + M + N)),
+            high=np.array([N] + [N] + [C] + [S]*M + [S]*N),
             dtype=np.uint32)
 
     def reset(self):
@@ -42,8 +42,8 @@ class BalanceEnv(gym.Env):
         self.n = N
         # how much we have seen
         self.generated = self.m
-        # create random instance from 150 to 200 items
-        self.nbItems = random.randint(150, self.n)
+        # create random instance from 75 to 100 items
+        self.nbItems = random.randint(75, self.n)
         self.x = np.zeros((self.n, self.n))
         # create random items
         self.items = np.random.randint(1, S, self.nbItems)
@@ -74,7 +74,7 @@ class BalanceEnv(gym.Env):
             # otherwise we add the item to the bin
             nr_bins = np.count_nonzero(self.total_weight, axis=0)
             # the less bins the higher the reward
-            reward = (200 - nr_bins) / 200
+            reward = (200 - nr_bins + 1) / 200
             self.visible_items[action] = 0
 
         if np.sum(self.visible_items) == 0 and self.generated < self.nbItems:
@@ -87,12 +87,11 @@ class BalanceEnv(gym.Env):
 
         self.total_reward += reward
         self.state = self._update_state()
-
         return self.state, reward, done, {}
 
     def _update_state(self):
-        # the state contains the amount of items and the amount we have seen
-        tempS = np.array([self.nbItems, self.generated])
+        # the state contains the numer of items, the amount we have seen and the capacity
+        tempS = np.array([self.nbItems, self.generated, self.C])
         # and the items it can see
         state = np.concatenate((tempS, self.visible_items))
         # and the total weight in each bin
@@ -126,7 +125,7 @@ class BalanceEnv(gym.Env):
                     rowsum = np.sum(self.x, axis=1)
                     nr_bins = np.count_nonzero(rowsum, axis=0)
                     self.x[idx][zero_index] = item
-                    reward += (200 - nr_bins) / 200
+                    reward += (200 - nr_bins + 1) / 200
                     break
 
         # if we havent generated n items we continue the process
@@ -140,7 +139,7 @@ class BalanceEnv(gym.Env):
             nr_bins = np.count_nonzero(rowsum, axis=0)
             # reset the visible items for the NN
             self.visible_items = self.items[:self.m]
-            self.generated = 10
+            self.generated = self.m
             return reward
 
 
