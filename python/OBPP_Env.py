@@ -86,8 +86,7 @@ class BalanceEnv(gym.Env):
         if np.sum(self.visible_items) == 0 and self.generated < self.nbItems:
             self.generate_new_items()
 
-        elif self.generated > self.nbItems:
-            # the less bins the higher the reward
+        elif self.generated >= self.nbItems and np.sum(self.visible_items) == 0:
             done = True
 
         self.total_reward += reward
