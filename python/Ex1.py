@@ -1,7 +1,11 @@
 import numpy as np
 import gurobipy as gp
 from gurobipy import GRB
-
+from tensorflow import keras
+from tensorflow.keras import layers
+from sklearn.metrics import confusion_matrix, accuracy_score
+from keras.models import Sequential
+from keras.layers import Dense
 
 class QuadraticKnapSack:
     def __init__(self, n, c):
@@ -50,5 +54,14 @@ class QuadraticKnapSack:
         model.optimize()
 
 
-x = QuadraticKnapSack(230, 1000)
-x.ILP_Solver()
+# create NN model
+model = Sequential()
+model.add(Dense(9, input_dim=14, activation='relu'))
+model.add(Dense(9, activation='relu'))
+model.add(Dense(9, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))
+model.compile(loss='binary_crossentropy',
+              optimizer='adam', metrics=['accuracy'])
+
+# train the model
+model.fit(X,Y, epochs=50, batch_size=256) 
