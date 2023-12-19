@@ -92,16 +92,16 @@ n_actions = env.m
 print(n_actions)
 input_dim = env.observation_space.shape[0]
 model = Sequential()
-model.add(Dense(20, activation='relu'))
-model.add(Dense(10, activation='relu'))
+model.add(Dense(250, activation='sigmoid'))
+model.add(Dense(50, activation='sigmoid'))
 model.add(Dense(n_actions, activation='softmax'))
-model.compile(optimizer=Adam(learning_rate=0.0003), loss='mse')
+model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
 modelT = Sequential()
-modelT.add(Dense(20, activation='relu'))
-modelT.add(Dense(10, activation='relu'))
+modelT.add(Dense(250, activation='sigmoid'))
+modelT.add(Dense(50, activation='sigmoid'))
 modelT.add(Dense(n_actions, activation='softmax'))
-modelT.compile(optimizer=Adam(learning_rate=0.0003), loss='mse')
+modelT.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
 
 # Experience replay
@@ -119,8 +119,8 @@ def replay(replay_memory, minibatch_size):
         if done:
             target_f[i][a] = 0
         else:    
-            target_f[i][a] = r  # Update q-value of action a in state s by replacing the prediction with the observed q-value 
-    history = model.fit(s_l,target_f, epochs=1, verbose=0, batch_size=32) # Train the nn
+            target_f[i][a] = r + gamma * max(qvals_sprime) # Update q-value of action a in state s by replacing the prediction with the observed q-value 
+    history = model.fit(s_l,target_f, epochs=1, verbose=0, batch_size=minibatch_size) # Train the nn
     avgloss.append(history.history["loss"][0])
     return model
 
@@ -129,10 +129,10 @@ n_episodes = 2000
 it = 0
 gamma = 0.993
 epsilon = 1.0
-epsilon_multiplier = 0.993
-epsilon_min = 0.001
-minibatch_size = 1000
-memory_minsize = 1000
+epsilon_multiplier = 0.93
+epsilon_min = 0.0001
+minibatch_size = 578
+memory_minsize = 1086
 n_update = 8
 r_sums = [0]
 g_sums = [0]
@@ -156,8 +156,6 @@ for n in range(n_episodes):
                 a = env.action_space.sample()
         else:
             a = np.argmax(qvals_s)
-            print(a)
-
         sprime, r, done, info = env.step(a)
         r_sum += r
         # add to memory, respecting memory buffer limit
@@ -175,7 +173,6 @@ for n in range(n_episodes):
                 modelT.set_weights(model.get_weights())
 
     if n % 10 == 0:
-        print(f"Epsilon: {epsilon}")
         print("######", n, r_sums[-1], g_sums[-1], r_sums[-1] - g_sums[-1], r_betters[-1], "######")
         r_sums.append(0)
         g_sums.append(0)

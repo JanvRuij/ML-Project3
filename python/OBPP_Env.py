@@ -42,6 +42,7 @@ class BalanceEnv(gym.Env):
         self.n = N
         # how much we have seen
         self.generated = self.m
+        self.nr_bins = 0
         # create random instance from 75 to 100 items
         self.nbItems = random.randint(75, self.n)
         self.x = np.zeros((self.n, self.n))
@@ -53,6 +54,7 @@ class BalanceEnv(gym.Env):
         self.visible_items = self.items[:self.m]
         self.greedy = self._greedy(0)
         self.total_reward = 0
+        
         # start out with bin weight equal to 0
         self.total_weight = np.zeros(self.n)
         self.state = self._update_state()
@@ -73,12 +75,15 @@ class BalanceEnv(gym.Env):
 
             # otherwise we add the item to the bin
             nr_bins = np.count_nonzero(self.total_weight, axis=0)
-            # the less bins the higher the reward
-            reward = (200 - nr_bins + 1) / 200
+            if nr_bins > self.nr_bins:
+                reward = 1
+                self.nr_bins = nr_bins
+            else:
+                reward = 0.5
+
             self.visible_items[action] = 0
 
         if np.sum(self.visible_items) == 0 and self.generated < self.nbItems:
-            print("new items")
             self.generate_new_items()
 
         elif self.generated > self.nbItems:
@@ -125,7 +130,11 @@ class BalanceEnv(gym.Env):
                     rowsum = np.sum(self.x, axis=1)
                     nr_bins = np.count_nonzero(rowsum, axis=0)
                     self.x[idx][zero_index] = item
-                    reward += (200 - nr_bins + 1) / 200
+                    if nr_bins > self.nr_bins:
+                        reward += 1
+                        self.nr_bins = nr_bins
+                    else:
+                        reward += 0.5
                     break
 
         # if we havent generated n items we continue the process
@@ -140,6 +149,7 @@ class BalanceEnv(gym.Env):
             # reset the visible items for the NN
             self.visible_items = self.items[:self.m]
             self.generated = self.m
+            self.nr_bins = 0
             return reward
 
 
