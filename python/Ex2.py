@@ -91,6 +91,7 @@ env = BalanceEnv()
 n_actions = env.m
 print(n_actions)
 input_dim = env.observation_space.shape[0]
+print(input_dim)
 model = Sequential()
 model.add(Dense(250, activation='sigmoid'))
 model.add(Dense(50, activation='sigmoid'))
