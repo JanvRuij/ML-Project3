@@ -93,18 +93,18 @@ print(n_actions)
 input_dim = env.observation_space.shape[0]
 print(input_dim)
 model = Sequential()
-model.add(Dense(200, activation='relu'))
 model.add(Dense(100, activation='relu'))
-model.add(Dense(40, activation='sigmoid'))
+model.add(Dense(100, activation='relu'))
+model.add(Dense(20, activation='sigmoid'))
 model.add(Dense(n_actions, activation='softmax'))
-model.compile(optimizer=Adam(learning_rate=0.003), loss='mse')
+model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
 modelT = Sequential()
-modelT.add(Dense(200, activation='relu'))
 modelT.add(Dense(100, activation='relu'))
-modelT.add(Dense(40, activation='sigmoid'))
+modelT.add(Dense(100, activation='relu'))
+modelT.add(Dense(20, activation='sigmoid'))
 modelT.add(Dense(n_actions, activation='softmax'))
-modelT.compile(optimizer=Adam(learning_rate=0.003), loss='mse')
+modelT.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
 
 # Experience replay
@@ -121,7 +121,7 @@ def replay(replay_memory, minibatch_size):
     for i, (s, a, r, qvals_sprime, done) in enumerate(zip(s_l, a_l, r_l, qvals_sprime_l, done_l)):
         if done:
             target_f[i][a] = 0
-        else:    
+        else:
             target_f[i][a] = r + gamma * max(qvals_sprime) # Update q-value of action a in state s by replacing the prediction with the observed q-value 
     history = model.fit(s_l,target_f, epochs=1, verbose=0, batch_size=minibatch_size) # Train the nn
     avgloss.append(history.history["loss"][0])
@@ -134,7 +134,7 @@ gamma = 0.993
 epsilon = 1.0
 epsilon_multiplier = 0.93
 epsilon_min = 0.0001
-minibatch_size = 578
+minibatch_size = 256
 memory_minsize = 1086
 n_update = 8
 r_sums = [0]
@@ -143,7 +143,7 @@ r_betters = [0]
 loss = []
 avgloss = []
 replay_memory = []  # replay memory holds s, a, r, s'
-mem_max_size = 10000
+mem_max_size = 30000
 
 for n in range(n_episodes):
     s = env.reset()
