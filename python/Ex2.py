@@ -93,16 +93,18 @@ print(n_actions)
 input_dim = env.observation_space.shape[0]
 print(input_dim)
 model = Sequential()
-model.add(Dense(250, activation='sigmoid'))
-model.add(Dense(50, activation='sigmoid'))
+model.add(Dense(200, activation='relu'))
+model.add(Dense(100, activation='relu'))
+model.add(Dense(40, activation='sigmoid'))
 model.add(Dense(n_actions, activation='softmax'))
-model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+model.compile(optimizer=Adam(learning_rate=0.003), loss='mse')
 
 modelT = Sequential()
-modelT.add(Dense(250, activation='sigmoid'))
-modelT.add(Dense(50, activation='sigmoid'))
+modelT.add(Dense(200, activation='relu'))
+modelT.add(Dense(100, activation='relu'))
+modelT.add(Dense(40, activation='sigmoid'))
 modelT.add(Dense(n_actions, activation='softmax'))
-modelT.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+modelT.compile(optimizer=Adam(learning_rate=0.003), loss='mse')
 
 
 # Experience replay

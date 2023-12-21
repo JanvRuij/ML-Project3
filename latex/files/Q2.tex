@@ -1,2 +1,25 @@
-\section{Question2}
-
+\section*{Exercise 2}
+\subsection*{1}
+The first greedy strategy is to order the items from high to low and put them in the next fitting bin from high to low. The second greedy strategy is to also sort the items from high to low, but this time we divide the items evenly over two bins, if an item does not fit in one of the two bins, we start dividing the items over the second and third bin. An overview of the algorithms can be found in the APPENDIX.
+\subsection*{2}
+In the instance created there are always 5 visible items, this is also the number of actions the neural network has. Each time the neural network chooses an item, it will be put in the next fitting bin. Each time the neural network chooses an item and this item was already put in a bin, the reward is 0. If the neural network chooses an item and the number of bins stays the same, the reward is 1 and if the number of bins increases, the reward is 0.5. The neural network observes 102 pieces of information in total:
+\begin{enumerate}
+	\item The capcity of the bins
+	\item The number of items seen
+	\item The weight of each visible item (5 in total)
+	\item The current weight in each bin (100 in total)
+\end{enumerate}
+With this information the neural network has to decide which item to take, after taking the action which has the highest reward (according to the neural network), the observation space, the action taken and the reward associated are stored for training. 
+\subsection*{3}
+For the creation of Online Bin Packing instances the folliwng has been decided:
+\begin{enumerate}
+	\item Capacity of the bins is 100
+	\item Number of visible items is 5
+	\item Number of items in total is 100
+	\item Weight of each item is interger uniformly distributed on 75, 100
+\end{enumerate}
+\subsection*{4}
+After testing multiple neural networks the overall design looked like this:\\
+We are beating the greedy for the first time after 550 games played. But it the end the greedy still seems a bit better.
+\subsection*{5}
+After comparing t

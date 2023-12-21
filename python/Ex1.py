@@ -37,12 +37,12 @@ class QuadraticKnapSack:
         x = model.addVars(self.n, vtype=GRB.BINARY, name="x")
         print(self.n)
         w = model.addVars(self.n, self.n, vtype=GRB.CONTINUOUS, name="w")
-
+        print(self.V.shape)
         # set the objective
         model.setObjective(
                 gp.quicksum(self.v[i] * x[i] for i in range(self.n))
                 +
-                gp.quicksum(self.V[i][j] * w[i, j]
+                gp.quicksum(self.V[i, j] * w[i, j]
                             for i in range(self.n - 1)
                             for j in range(i + 1, self.n)),
                 sense=GRB.MAXIMIZE)
@@ -72,39 +72,39 @@ class QuadraticKnapSack:
             if "x" in var.VarName:
                 self.x[index] = var.X
                 index += 1
-        print(self.x)
 
         print(model.ObjVal)
 
     def MathHeuristic(self, threshold):
         # using NN to reduce the size of variables
         nn_model = keras.models.load_model("model_QK")
-        predict = np.zeros(self.n)
+        predict = np.ones(self.n)
         for i in range(self.n):
             high_combos = np.concatenate((self.V[:, i], self.V[i, :]))
             high_combos = np.sort(high_combos)[-100:]
             z = np.array([self.v[i], self.w[i]])
             X = np.append(z, high_combos)
-            p = nn_model.predict(X[:, :5].reshape(1, 5), verbose='0')
-            if p > threshold:
-                predict[i] = 1
+            p = nn_model.predict(X[:5].reshape(1, 5), verbose='0')
+            if p[0] < threshold:
+                predict[i] = 0
 
         # remove the variables
-        self.n = np.count_nonzero(predict)
-        self.v = self.v[np.dot(self.v, predict) != 0][0]
-        self.w = self.w[np.dot(self.w, predict) != 0][0]
         non_zero = np.where(predict != 0)
-        self.V = self.V[non_zero, :]
-        self.V = self.V[:, non_zero][0][0]
+        zero = np.where(predict == 0)
+        self.n = len(non_zero[0])
+        self.v = self.v[non_zero]
+        self.w = self.w[non_zero]
+        self.V = np.delete(self.V, zero, axis=0)
+        self.V = np.delete(self.V, zero, axis=1)
         # now lets optimize the model with less variables
         gp_model = self.CLIN_Model()
         gp_model.optimize()
         print(gp_model.ObjVal)
 
 
-# x = QuadraticKnapSack(300, 15)
-# x.ILP_Solver()
-# x.MathHeuristic(0.25)
+x = QuadraticKnapSack(300, 15)
+x.ILP_Solver()
+x.MathHeuristic(0.05)
 # create the data
 #with open("QKInstances.txt", "a") as file:
 #    # create training data
@@ -137,15 +137,15 @@ print(X.shape)
 # create NN model
 model = Sequential()
 model.add(Dense(20, activation='relu'))
-model.add(Dense(20, activation='relu'))
-model.add(Dense(8, activation='relu'))
+model.add(Dense(15, activation='relu'))
+model.add(Dense(4, activation='relu'))
 model.add(Dense(1, activation='sigmoid'))
-opt = SGD(learning_rate=0.005)
+opt = SGD(learning_rate=0.01)
 model.compile(loss=BinaryCrossentropy(),
               optimizer=opt, metrics=["accuracy"])
 
 # train the model
-model.fit(X[:15000, :7], Y[:15000], epochs=100, batch_size=300)
+model.fit(X[:15000, :5], Y[:15000], epochs=50, batch_size=400)
 
 model.save("model_QK")
 # predict with the keras model
@@ -155,7 +155,7 @@ for j in range(5, 95, 5):
     FP = 1
     FN = 1
     threshold = j/100
-    prediction = model.predict(X[:, :7])
+    prediction = model.predict(X[:, :5])
     for i in range(len(X) - 15000):
         if prediction[i] > threshold and Y[i] == 1:
             TP += 1
